@@ -1,5 +1,5 @@
-echo Install SiLabs Driver from: https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers!
-read -p "Press enter to confirm"
+echo Go to https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers and install SiLabs USB driver!
+read -p "Press enter to confirm the driver has been installed correctly"
 
 mkdir temp
 cd temp
