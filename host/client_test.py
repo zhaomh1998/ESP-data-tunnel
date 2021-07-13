@@ -1,3 +1,4 @@
+import time
 import socket
 import argparse
 import traceback
@@ -14,12 +15,17 @@ class Client:
         self.sock.bind(source)
 
         self.current_packet = b''
+        self.period = 1 / args.test_hz
+        self.last_tx = time.time()
+        self.test_pak_size = args.pac_size
 
     def start(self):
         while True:
             try:
-                self.make_packet('test')  # Form packet
-                self.outbound()  # Send packet
+                if time.time() - self.last_tx > self.period:
+                    self.last_tx = time.time()
+                    self.make_packet('t' * self.test_pak_size)  # Form packet
+                    self.outbound()  # Send packet
 
             except KeyboardInterrupt:
                 print('Gracefully shutting down...')
