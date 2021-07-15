@@ -3,6 +3,8 @@ import socket
 import argparse
 import traceback
 
+from decode import decode_adxl345_packet
+
 
 class Server:
     def __init__(self, args):
@@ -60,18 +62,23 @@ class Server:
     def inbound(self, buf_size=4096, verbose=True):
         try:
             data, client_addr = self.sock.recvfrom(buf_size)
-            packet = data.decode('ascii')
-            self.new_packet[client_addr] = packet
-            if verbose:
-                print('[%s:%s] ' % client_addr + packet)
-            return True, client_addr, packet
         except KeyboardInterrupt:
             raise
         except:
             traceback.print_exc()
-            print('\n\n^^^^^^^^^\nFailed to receive and decode packet.')
+            print('\n\n^^^^^^^^^\nFailed to receive packet.')
             return False, None, None
 
+        try:
+            packet = data.decode('ascii')
+        except UnicodeDecodeError:
+            xyz = decode_adxl345_packet(data)
+            packet = '%.2f, %.2f, %.2f' % xyz
+
+        self.new_packet[client_addr] = packet
+        if verbose:
+            print('[%s:%s] ' % client_addr + packet)
+        return True, client_addr, packet
 
 def main():
     parser = argparse.ArgumentParser()

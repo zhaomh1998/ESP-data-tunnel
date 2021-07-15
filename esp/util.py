@@ -88,3 +88,8 @@ class ADXL345_I2C:
         if z > 32767:
             z -= 65536
         return x, y, z
+
+    @property
+    def xyz_raw(self):
+        self.buff = self.i2c.readfrom_mem(self.addr, 0x32, 6)
+        return self.buff

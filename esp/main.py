@@ -23,8 +23,12 @@ class Client:
     def start(self):
         while True:
             try:
-                acc_data = acc.xyz
-                self.make_packet('%.2f, %.2f, %.2f' % acc_data)  # Form packet
+                # acc_data = acc.xyz
+                # acc_data = (1, 2, 3)
+                # self.make_packet('%.2f, %.2f, %.2f' % acc_data)  # Form packet
+                self.make_packet('test')
+                # self.make_packet('FAKE 123.45, 123.45, 123.45, 123.45, 123.45, 123.45')
+                self.current_packet = acc.xyz_raw
                 self.outbound()  # Send packet
 
             except KeyboardInterrupt:
