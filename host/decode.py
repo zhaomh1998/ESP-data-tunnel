@@ -1,3 +1,7 @@
+def to_int16(msb, lsb):
+    return int.from_bytes(bytearray([msb, lsb]), byteorder='big', signed=True)
+
+
 def decode_adxl345_packet(buff):
     assert isinstance(buff, bytes)
     assert len(buff) == 6
@@ -12,3 +16,17 @@ def decode_adxl345_packet(buff):
     if z > 32767:
         z -= 65536
     return x, y, z
+
+
+def decode_mpu6050_packet(buff):
+    assert isinstance(buff, bytes)
+    assert len(buff) == 14
+
+    acc_x = to_int16(buff[0], buff[1])
+    acc_y = to_int16(buff[2], buff[3])
+    acc_z = to_int16(buff[4], buff[5])
+    temperature = to_int16(buff[6], buff[7]) / 340.00 + 36.53
+    gyro_x = to_int16(buff[8], buff[9])
+    gyro_y = to_int16(buff[10], buff[11])
+    gyro_z = to_int16(buff[12], buff[13])
+    return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature
