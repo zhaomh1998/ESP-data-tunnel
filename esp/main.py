@@ -1,11 +1,15 @@
-from machine import RTC, Pin, SPI
+import utime
 import usocket as socket
-from util import ADXL345_I2C
+
+from util import MPU6050_I2C
 
 SERVER_IP = '192.168.8.144'
 SERVER_PORT = 8000
+TX_HZ = 200
 
-acc = ADXL345_I2C()
+# Note: Ticks roll over at 2^30. Use utime.ticks_add or utime.ticks_diff instead of + / - to avoid issues
+
+imu = MPU6050_I2C()
 
 
 class Client:
@@ -20,16 +24,30 @@ class Client:
 
         self.current_packet = b''
 
+        self.tx_period = 1e6 / TX_HZ
+        self.tx_next = utime.ticks_us()
+
+        self.stat_next = utime.ticks_us()
+        self.counter = 0
+        self.counter_last = 0
+
+    def statistics(self):
+        self.counter += 1
+        if utime.ticks_diff(self.stat_next, utime.ticks_us()) <= 0:
+            self.stat_next = utime.ticks_add(self.stat_next, 1e6)
+            print('%d Hz' % (self.counter - self.counter_last))
+            self.counter_last = self.counter
+
     def start(self):
         while True:
+            if utime.ticks_diff(self.tx_next, utime.ticks_us()) > 0:
+                continue
+
             try:
-                # acc_data = acc.xyz
-                # acc_data = (1, 2, 3)
-                # self.make_packet('%.2f, %.2f, %.2f' % acc_data)  # Form packet
-                self.make_packet('test')
-                # self.make_packet('FAKE 123.45, 123.45, 123.45, 123.45, 123.45, 123.45')
-                self.current_packet = acc.xyz_raw
+                self.tx_next += utime.ticks_add(self.tx_next, self.tx_period)
+                self.current_packet = imu.data
                 self.outbound()  # Send packet
+                self.statistics()
 
             except KeyboardInterrupt:
                 print('Gracefully shutting down...')
