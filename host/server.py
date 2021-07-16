@@ -12,6 +12,7 @@ class Server:
 
         # UDP Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setblocking(False)
         self.sock.bind(self.addr)
 
         self.counter = dict()
@@ -23,12 +24,13 @@ class Server:
         print('Server listening on %s:%s' % self.addr)
         while True:
             try:
-                status, source, msg = self.inbound(verbose=False)
-                if source in self.counter.keys():
-                    self.counter[source] += 1
-                else:
-                    self.counter[source] = 1
-                self.statistics()
+                success, source, msg = self.inbound(verbose=False)
+                if success:
+                    if source in self.counter.keys():
+                        self.counter[source] += 1
+                    else:
+                        self.counter[source] = 1
+                    self.statistics()
 
             except KeyboardInterrupt:
                 self.shutdown()
@@ -64,6 +66,9 @@ class Server:
             data, client_addr = self.sock.recvfrom(buf_size)
         except KeyboardInterrupt:
             raise
+        except BlockingIOError:
+            # Nothing received
+            return False, None, None
         except:
             traceback.print_exc()
             print('\n\n^^^^^^^^^\nFailed to receive packet.')
