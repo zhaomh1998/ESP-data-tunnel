@@ -93,3 +93,55 @@ class ADXL345_I2C:
     def xyz_raw(self):
         self.buff = self.i2c.readfrom_mem(self.addr, 0x32, 6)
         return self.buff
+
+
+class MPU6050_I2C():
+    MPU6050_PWR_MGMT_1 = 0x6B
+
+    MPU6050_ACCEL_CONFIG = 0x1C
+    MPU6050_ACCEL_RANGE_2G = int('00000000', 2)  # Unit: G
+    MPU6050_ACCEL_RANGE_4G = int('00001000', 2)
+    MPU6050_ACCEL_RANGE_8G = int('00010000', 2)
+    MPU6050_ACCEL_RANGE_16G = int('00011000', 2)
+
+    MPU6050_GYRO_CONFIG = 0x1B
+    MPU6050_GYRO_RANGE_250 = int('00000000', 2)  # Unit: deg/s
+    MPU6050_GYRO_RANGE_500 = int('00001000', 2)
+    MPU6050_GYRO_RANGE_1000 = int('00010000', 2)
+    MPU6050_GYRO_RANGE_2000 = int('00011000', 2)
+
+    def __init__(self, addr=0x68):
+        self.addr = addr
+        self.i2c = I2C(-1, Pin(5), Pin(4))
+        self.write_reg(self.MPU6050_PWR_MGMT_1, 0)
+        self.write_reg(self.MPU6050_ACCEL_CONFIG, self.MPU6050_ACCEL_RANGE_2G)
+        self.write_reg(self.MPU6050_GYRO_CONFIG, self.MPU6050_GYRO_RANGE_250)
+
+    def write_reg(self, addr, byte):
+        self.i2c.writeto_mem(self.addr, addr, bytearray([byte]))
+
+    @property
+    def data(self):
+        return self.i2c.readfrom_mem(self.addr, 0x3B, 14)
+
+    def to_int16(self, msb, lsb):
+        """ Converts to signed int16 from two bytes """
+        data = int.from_bytes(bytearray([msb, lsb]), 'big')
+        if data > 32767:
+            data -= 65536
+        return data
+
+    @property
+    def raw_readings(self):
+        """ Returns raw readings in [-32768, +32767] for accelerometer and gyroscope, scaled reading for temperature"""
+        raw_bytes = self.data
+
+        acc_x = self.to_int16(raw_bytes[0], raw_bytes[1])
+        acc_y = self.to_int16(raw_bytes[2], raw_bytes[3])
+        acc_z = self.to_int16(raw_bytes[4], raw_bytes[5])
+        temperature = self.to_int16(raw_bytes[6], raw_bytes[7]) / 340.00 + 36.53
+        gyro_x = self.to_int16(raw_bytes[8], raw_bytes[9])
+        gyro_y = self.to_int16(raw_bytes[10], raw_bytes[11])
+        gyro_z = self.to_int16(raw_bytes[12], raw_bytes[13])
+
+        return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature
