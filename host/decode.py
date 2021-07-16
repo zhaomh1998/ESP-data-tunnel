@@ -30,3 +30,12 @@ def decode_mpu6050_packet(buff):
     gyro_y = to_int16(buff[10], buff[11])
     gyro_z = to_int16(buff[12], buff[13])
     return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature
+
+
+def decode_tag_packet(buff):
+    assert isinstance(buff, bytes)
+    assert len(buff) == 22
+    acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature = decode_mpu6050_packet(buff[:14])
+    time_us = int.from_bytes(buff[14:14 + 5], byteorder='big', signed=False)
+    reserved = buff[14 + 5:]
+    return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature, time_us

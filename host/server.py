@@ -3,7 +3,7 @@ import socket
 import argparse
 import traceback
 
-from decode import decode_adxl345_packet, decode_mpu6050_packet
+from decode import decode_tag_packet
 
 
 class Server:
@@ -77,15 +77,14 @@ class Server:
         try:
             packet = data.decode('ascii')
         except UnicodeDecodeError:
-            # xyz = decode_adxl345_packet(data)
-            # packet = '%.2f, %.2f, %.2f' % xyz
-            imu_data = decode_mpu6050_packet(data)
-            packet = '\t'.join('{:8.2f}'.format(i) for i in imu_data)
+            tag_data = decode_tag_packet(data)
+            packet = '\t'.join('{:8.2f}'.format(i) for i in tag_data)
 
         self.new_packet[client_addr] = packet
         if verbose:
             print('[%s:%s] ' % client_addr + packet)
         return True, client_addr, packet
+
 
 def main():
     parser = argparse.ArgumentParser()

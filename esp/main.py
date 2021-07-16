@@ -61,29 +61,39 @@ class Client:
                 self.tx_next = utime.ticks_add(self.tx_next, self.tx_period)
                 self.handle_us_overflow()
 
-                self.current_packet = imu.data
+                self.make_data_packet()
                 self.outbound()  # Send packet
                 self.statistics()
-                # us = utime.ticks_us()
-                # us_t = self.true_us()
-                # ms = utime.ticks_ms()
-                # s = utime.time()
-                # print('%d\t%d\t%d\t%d' % (us_t, us, ms, s))
 
             except KeyboardInterrupt:
                 print('Gracefully shutting down...')
                 self.end()
 
+    def make_data_packet(self):
+        imu_data = imu.data  # 14B
+        ts = self.true_us().to_bytes(5, 'big', False)  # 5B
+        reserved = bytearray([0, 0, 0])  # 3B
+        # 14 + 5 + 3 = 22 Bytes
+        self.current_packet = imu_data + ts + reserved
+
     def outbound(self):
         self.sock.sendto(self.current_packet, self.dest)
-
-    def make_packet(self, message):
-        self.current_packet = message.encode('ascii')
 
     def end(self):
         self.sock.close()
         exit()
 
+    # -------------------- Benchmarks --------------------
+    def benchmark_clock(self):
+        while True:
+            self.handle_us_overflow()
+            us = utime.ticks_us()
+            us_t = self.true_us()
+            ms = utime.ticks_ms()
+            s = utime.time()
+            print('%d\t%d\t%d\t%d' % (us_t, us, ms, s))
+
 
 tester = Client()
 tester.start()
+# tester.benchmark_clock()
