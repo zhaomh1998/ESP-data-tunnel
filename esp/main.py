@@ -24,7 +24,7 @@ class Client:
 
         self.current_packet = b''
 
-        self.tx_period = 1e6 / TX_HZ
+        self.tx_period = int(1e6 / TX_HZ)
         self.tx_next = utime.ticks_us()
 
         self.stat_next = utime.ticks_us()
@@ -39,7 +39,7 @@ class Client:
     def statistics(self):
         self.counter += 1
         if utime.ticks_diff(self.stat_next, utime.ticks_us()) <= 0:
-            self.stat_next = utime.ticks_add(self.stat_next, 1e6)
+            self.stat_next = utime.ticks_add(self.stat_next, int(1e6))
             print('%d Hz' % (self.counter - self.counter_last))
             self.counter_last = self.counter
 
@@ -54,20 +54,21 @@ class Client:
 
     def start(self):
         while True:
-            # if utime.ticks_diff(self.tx_next, utime.ticks_us()) > 0:
-            #     continue
+            if utime.ticks_diff(self.tx_next, utime.ticks_us()) > 0:
+                continue
 
             try:
-                # self.tx_next += utime.ticks_add(self.tx_next, self.tx_period)
+                self.tx_next = utime.ticks_add(self.tx_next, self.tx_period)
                 self.handle_us_overflow()
-                # self.current_packet = imu.data
-                # self.outbound()  # Send packet
-                # self.statistics()
-                us = utime.ticks_us()
-                us_t = self.true_us()
-                ms = utime.ticks_ms()
-                s = utime.time()
-                print('%d\t%d\t%d\t%d' % (us_t, us, ms, s))
+
+                self.current_packet = imu.data
+                self.outbound()  # Send packet
+                self.statistics()
+                # us = utime.ticks_us()
+                # us_t = self.true_us()
+                # ms = utime.ticks_ms()
+                # s = utime.time()
+                # print('%d\t%d\t%d\t%d' % (us_t, us, ms, s))
 
             except KeyboardInterrupt:
                 print('Gracefully shutting down...')
