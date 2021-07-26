@@ -39,3 +39,12 @@ def decode_tag_packet(buff):
     time_us = int.from_bytes(buff[14:14 + 5], byteorder='big', signed=False)
     reserved = buff[14 + 5:]
     return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature, time_us
+
+def decode_tag_packet_bench(buff):
+    assert isinstance(buff, bytes)
+    assert len(buff) == 22
+    acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature = decode_mpu6050_packet(buff[:14])
+    time_us = int.from_bytes(buff[14:14 + 5], byteorder='big', signed=False)
+    tx_rate = int.from_bytes(buff[19:21], byteorder='big', signed=False)
+    reserved = buff[21:]
+    return acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temperature, time_us, tx_rate

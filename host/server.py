@@ -3,7 +3,7 @@ import socket
 import argparse
 import traceback
 
-from decode import decode_tag_packet
+from decode import decode_tag_packet, decode_tag_packet_bench
 
 
 class Server:
@@ -78,6 +78,9 @@ class Server:
             packet = data.decode('ascii')
         except UnicodeDecodeError:
             tag_data = decode_tag_packet(data)
+            with open('rx.log', 'a') as f:
+                f.write(','.join('{:8.2f}'.format(i) for i in decode_tag_packet_bench(data)))
+                f.write('\n')
             packet = '\t'.join('{:8.2f}'.format(i) for i in tag_data)
 
         self.new_packet[client_addr] = packet
