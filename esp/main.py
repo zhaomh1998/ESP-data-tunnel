@@ -36,6 +36,14 @@ class Client:
         self.last_us = utime.ticks_us()
         self.us_overflows = 0
 
+        # Loss benchmark
+        self.bench_tx_hz_min = 50
+        self.bench_tx_hz_max = 350
+        self.bench_tx_hz_step = 5
+        self.bench_tx_hz = self.bench_tx_hz_min
+        self.bench_packets_per_rate = 500
+        self.bench_tx_sent = 0
+
     def statistics(self):
         self.counter += 1
         if utime.ticks_diff(self.stat_next, utime.ticks_us()) <= 0:
@@ -93,7 +101,39 @@ class Client:
             s = utime.time()
             print('%d\t%d\t%d\t%d' % (us_t, us, ms, s))
 
+    def benchmark_loss(self):
+        while True:
+            if utime.ticks_diff(self.tx_next, utime.ticks_us()) > 0:
+                continue
+
+            try:
+                period = int(1e6 / self.bench_tx_hz)
+                self.tx_next = utime.ticks_add(self.tx_next, period)
+                self.handle_us_overflow()
+
+                self.make_data_packet_benchmark()
+                self.outbound()  # Send packet
+                self.bench_tx_sent += 1
+                if self.bench_tx_sent % self.bench_packets_per_rate == 0:
+                    self.bench_tx_hz += self.bench_tx_hz_step
+                    if self.bench_tx_hz > self.bench_tx_hz_max:
+                        self.bench_tx_hz = self.bench_tx_hz_min
+                self.statistics()
+
+            except KeyboardInterrupt:
+                print('Gracefully shutting down...')
+                self.end()
+
+    def make_data_packet_benchmark(self):
+        imu_data = imu.data  # 14B
+        ts = self.true_us().to_bytes(5, 'big', False)  # 5B
+        tx_rate = self.bench_tx_hz.to_bytes(2, 'big', False)  # 2B
+        reserved = bytearray([0])  # 1B
+        # 14 + 5 + 3 = 22 Bytes
+        self.current_packet = imu_data + ts + tx_rate + reserved
+
 
 tester = Client()
-tester.start()
+# tester.start()
 # tester.benchmark_clock()
+tester.benchmark_loss()
