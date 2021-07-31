@@ -1,13 +1,16 @@
 import utime
 import usocket as socket
 
+import mac
 from util import MPU6050_I2C
 
 SERVER_IP = '192.168.8.144'
 SERVER_PORT = 8000
 TX_HZ = 200
 
-# Note: Ticks roll over at 2^30. Use utime.ticks_add or utime.ticks_diff instead of + / - to avoid issues
+# Note: Specific to firmware esp8266-20200911-v1.13.bin, ticks roll over at 2^30.
+# Use utime.ticks_add or utime.ticks_diff instead of + / - to avoid issues
+# This number may differ on other versions of firmware or other MCUs.
 
 imu = MPU6050_I2C()
 
@@ -15,11 +18,12 @@ imu = MPU6050_I2C()
 class Client:
     def __init__(self):
         self.dest = (SERVER_IP, SERVER_PORT)
-        src_port = 0
+        src_port = 8000
         source = ('0.0.0.0', src_port)
 
         # UDP Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setblocking(False)
         self.sock.bind(source)
 
         self.current_packet = b''
@@ -57,7 +61,7 @@ class Client:
     def handle_us_overflow(self):
         current_us = utime.ticks_us()
         if current_us < self.last_us:
-            self.us_overflows += 1073741824
+            self.us_overflows += 1073741824  # Specific to esp8266-20200911-v1.13.bin. May differ on other FW / MCUs.
         self.last_us = current_us
 
     def start(self):
@@ -69,6 +73,7 @@ class Client:
                 self.tx_next = utime.ticks_add(self.tx_next, self.tx_period)
                 self.handle_us_overflow()
 
+                self.inbound()
                 self.make_data_packet()
                 self.outbound()  # Send packet
                 self.statistics()
@@ -84,12 +89,30 @@ class Client:
         # 14 + 5 + 3 = 22 Bytes
         self.current_packet = imu_data + ts + reserved
 
+    def inbound(self, buf_size=4096):
+        try:
+            data, client_addr = self.sock.recvfrom(buf_size)
+            reply = mac.process_command(data, self)
+            if reply is not None:
+                self.sock.sendto(reply, client_addr)
+            return True, client_addr, data
+        except OSError:
+            # Nothing received
+            return False, None, None
+
     def outbound(self):
         self.sock.sendto(self.current_packet, self.dest)
 
     def end(self):
         self.sock.close()
         exit()
+
+    # -------------------- MAC --------------------
+    def mac_sync(self):
+        print('SYNC!')
+
+    def update_conf(self, new_conf):
+        print('Update Conf with ' + repr(new_conf))
 
     # -------------------- Benchmarks --------------------
     def benchmark_clock(self):
@@ -134,6 +157,6 @@ class Client:
 
 
 tester = Client()
-# tester.start()
+tester.start()
 # tester.benchmark_clock()
-tester.benchmark_loss()
+# tester.benchmark_loss()

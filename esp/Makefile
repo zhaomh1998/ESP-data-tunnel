@@ -62,7 +62,7 @@ firmware: install
 upload:
 	@for p in $(PORTS_NOPATH); do \
   		echo Uploading to $$p; \
-  		$(MPFSHELL) --open $$p -nc "mput .*\.py; exit"; \
+  		$(MPFSHELL) --open $$p -nc "mput .*\.py"; \
 	done
 
 .PHONY: check # : Compile Python code
