@@ -5,6 +5,7 @@ import traceback
 
 from decode import decode_tag_packet, decode_tag_packet_bench
 
+import schedule
 
 class Server:
     def __init__(self, args):
@@ -20,17 +21,18 @@ class Server:
         self.counter_last = self.counter.copy()
         self.last_stat = time.time()
 
+        self.job_stat = schedule.every(2).seconds.do(self.statistics)
     def start(self):
         print('Server listening on %s:%s' % self.addr)
         while True:
             try:
+                schedule.run_pending()
                 success, source, msg = self.inbound(verbose=False)
                 if success:
                     if source in self.counter.keys():
                         self.counter[source] += 1
                     else:
                         self.counter[source] = 1
-                    self.statistics()
 
             except KeyboardInterrupt:
                 self.shutdown()
@@ -39,13 +41,13 @@ class Server:
                 self.shutdown()
 
     def statistics(self):
-        if time.time() - self.last_stat > 1:
-            self.last_stat = time.time()
-            for client in self.counter.keys():
-                if client in self.counter_last.keys():
-                    pak_last_sec = self.counter[client] - self.counter_last[client]
-                    print('[%s:%s] ' % client + f'{pak_last_sec} Hz | ' + self.new_packet[client])
-            self.counter_last = self.counter.copy()
+        t_since_last = time.time() - self.last_stat
+        self.last_stat = time.time()
+        for client in self.counter.keys():
+            if client in self.counter_last.keys():
+                rate = int((self.counter[client] - self.counter_last[client]) / t_since_last)
+                print('[%s:%s] ' % client + f'{rate} Hz | ' + self.new_packet[client])
+        self.counter_last = self.counter.copy()
 
     def shutdown(self):
         self.sock.close()
