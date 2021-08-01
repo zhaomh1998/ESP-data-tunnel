@@ -21,9 +21,9 @@ class NodeTableModel(QAbstractTableModel):
             elif col == 1:
                 return nodes_sorted[nth_node]
             elif col == 2:
-                return self.backend.nodes[nodes_sorted[nth_node]][0]
+                return self.backend.nodes[nodes_sorted[nth_node]].addr[0]
             elif col == 3:
-                return self.backend.nodes_ack[nodes_sorted[nth_node]].get_loss()
+                return self.backend.nodes[nodes_sorted[nth_node]].loss_cntr.get_loss()
             else:
                 raise NotImplementedError(f'Column {col} data() not implemented!')
 

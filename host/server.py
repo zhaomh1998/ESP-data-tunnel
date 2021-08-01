@@ -8,7 +8,7 @@ from warnings import warn
 warnings.simplefilter('always', UserWarning)
 
 from decode import decode_tag_packet, decode_tag_packet_bench
-from mac_util import NodeLossCounter
+from mac_util import Node
 
 import schedule
 
@@ -130,16 +130,15 @@ class Server:
         if command == 'ack_ping':
             assert 'id' in packet.keys(), f'Invalid ACK packet: {repr(packet)}'
             node_id = packet['id']
-            if node_id not in self.nodes.keys() or addr != self.nodes[node_id]:
+            if node_id not in self.nodes.keys() or addr != self.nodes[node_id].addr:
                 if node_id in self.nodes.keys():
                     warn(f'Detected node {node_id} with different IP address! Possible duplicated node id?')
                 print(f'Discovered new node {node_id} at %s:%s' % addr)
-                self.nodes[node_id] = addr
-                self.nodes_ack[node_id] = NodeLossCounter()
+                self.nodes[node_id] = Node(node_id, addr)
                 self.nodelist_update()
             else:
-                self.nodes_ack[node_id].ack_ok()
-            self.node_last_active[node_id] = time.time()
+                self.nodes[node_id].loss_cntr.ack_ok()
+            self.nodes[node_id].last_active = time.time()
         else:
             warn(f'Unhandled MAC command {command}')
 
@@ -164,18 +163,21 @@ class Server:
 
     def ping(self):
         # Clean inactive nodes
-        for node, last_active in self.node_last_active.items():
-            if node in self.nodes.keys() and time.time() - last_active > self.node_timeout:
+        timed_out_nodes = []
+        for node_id, node in self.nodes.items():
+            if time.time() - node.last_active > self.node_timeout:
                 # Node non-responsive to ping for too long, remove
-                print(f'Node {node} went offline')
-                del self.nodes[node]
-                del self.nodes_ack[node]
-                self.nodelist_update()
+                timed_out_nodes.append(node_id)
+        if len(timed_out_nodes) != 0:
+            for node_id in timed_out_nodes:
+                print(f'Node {node_id} went offline')
+                del self.nodes[node_id]
+            self.nodelist_update()
 
         # Broadcast ping
         self.outbound({'cmd': 'ping'})
         for node in self.nodes:
-            self.nodes_ack[node].ping_ok()
+            self.nodes[node].loss_cntr.ping_ok()
 
     def mac_sync(self):
         self.outbound({'cmd': 'sync'})
