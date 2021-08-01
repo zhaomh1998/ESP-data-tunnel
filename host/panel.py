@@ -30,6 +30,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.backend = BackendWorker()
         self.backend_thread = QThread()
         self.nodes_model = NodeTableModel(self.backend)
+        self.refresh_panel_timer = QTimer(self)
 
         self.start_backend()
         self.init_panel()
@@ -46,6 +47,9 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def init_panel(self):
         self.table_nodes.setModel(self.nodes_model)
+        self.refresh_panel_timer.setInterval(1000)
+        self.refresh_panel_timer.timeout.connect(self.refresh_panel)
+        self.refresh_panel_timer.start()
 
     def refresh_panel(self):
         self.nodes_model.layoutChanged.emit()

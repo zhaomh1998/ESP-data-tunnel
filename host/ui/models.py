@@ -8,7 +8,7 @@ from PyQt5.QtGui import *
 class NodeTableModel(QAbstractTableModel):
     def __init__(self, backend):
         super(NodeTableModel, self).__init__()
-        self.headers = ['Status', 'Node ID', 'IP', 'RX Rate']
+        self.headers = ['Status', 'Node ID', 'IP', 'Ping Loss']
         self.backend = backend
 
     def data(self, index, role):
@@ -23,7 +23,7 @@ class NodeTableModel(QAbstractTableModel):
             elif col == 2:
                 return self.backend.nodes[nodes_sorted[nth_node]][0]
             elif col == 3:
-                return 'TODO'
+                return self.backend.nodes_ack[nodes_sorted[nth_node]].get_loss()
             else:
                 raise NotImplementedError(f'Column {col} data() not implemented!')
 

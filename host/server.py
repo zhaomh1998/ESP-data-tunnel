@@ -3,8 +3,10 @@ import json
 import socket
 import argparse
 import traceback
+from warnings import warn
 
 from decode import decode_tag_packet, decode_tag_packet_bench
+from mac_util import NodeLossCounter
 
 import schedule
 
@@ -39,6 +41,7 @@ class Server:
 
         self.nodes = dict()
         self.node_last_active = dict()
+        self.nodes_ack = dict()
         self.node_timeout = 0
 
     # -------------------- Server Operations --------------------
@@ -126,9 +129,14 @@ class Server:
             assert 'id' in packet.keys(), f'Invalid ACK packet: {repr(packet)}'
             node_id = packet['id']
             if node_id not in self.nodes.keys() or addr != self.nodes[node_id]:
+                if node_id in self.nodes.keys():
+                    warn(f'Detected node {node_id} with different IP address! Possible duplicated node id?')
                 print(f'Discovered new node {node_id} at %s:%s' % addr)
                 self.nodes[node_id] = addr
+                self.nodes_ack[node_id] = NodeLossCounter()
                 self.nodelist_update()
+            else:
+                self.nodes_ack[node_id].ack_ok()
             self.node_last_active[node_id] = time.time()
 
     def handle_binary_packet(self, addr, data):
@@ -157,10 +165,13 @@ class Server:
                 # Node non-responsive to ping for too long, remove
                 print(f'Node {node} went offline')
                 del self.nodes[node]
+                del self.nodes_ack[node]
                 self.nodelist_update()
 
         # Broadcast ping
         self.outbound({'cmd': 'ping'})
+        for node in self.nodes:
+            self.nodes_ack[node].ping_ok()
 
     def mac_sync(self):
         self.outbound({'cmd': 'sync'})
