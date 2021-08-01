@@ -34,9 +34,12 @@ class Server:
 
         self.job_mac = None
         self.job_ping = None
+        self.job_ping_clean = None
         self.job_stat = schedule.every(2).seconds.do(self.statistics)
 
         self.nodes = dict()
+        self.node_last_active = dict()
+        self.node_timeout = 0
 
     # -------------------- Server Operations --------------------
 
@@ -118,7 +121,15 @@ class Server:
     # ----------------- Inbound Packet Handlers -----------------
 
     def handle_mac_packet(self, addr, packet):
-        pass
+        command = packet['cmd']
+        if command == 'ack':
+            assert 'id' in packet.keys(), f'Invalid ACK packet: {repr(packet)}'
+            node_id = packet['id']
+            if node_id not in self.nodes.keys() or addr != self.nodes[node_id]:
+                print(f'Discovered new node {node_id} at %s:%s' % addr)
+                self.nodes[node_id] = addr
+                self.nodelist_update()
+            self.node_last_active[node_id] = time.time()
 
     def handle_binary_packet(self, addr, data):
         tag_data = decode_tag_packet(data)
@@ -140,6 +151,15 @@ class Server:
     # --------------------------- MAC ---------------------------
 
     def ping(self):
+        # Clean inactive nodes
+        for node, last_active in self.node_last_active.items():
+            if node in self.nodes.keys() and time.time() - last_active > self.node_timeout:
+                # Node non-responsive to ping for too long, remove
+                print(f'Node {node} went offline')
+                del self.nodes[node]
+                self.nodelist_update()
+
+        # Broadcast ping
         self.outbound({'cmd': 'ping'})
 
     def mac_sync(self):
@@ -151,9 +171,14 @@ class Server:
         self.job_mac = schedule.every(interval_s).seconds.do(self.mac_sync)
 
     def set_ping_interval(self, interval_s):
+        self.node_timeout = interval_s * 10
         if self.job_ping is not None:
             schedule.cancel_job(self.job_ping)
         self.job_ping = schedule.every(interval_s).seconds.do(self.ping)
+
+    def nodelist_update(self):
+        """ Callback for any updates on node list (node goes online / offline) """
+        pass
 
 
 def main():
