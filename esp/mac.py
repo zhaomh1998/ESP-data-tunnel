@@ -5,14 +5,20 @@ node_id = machine.unique_id()
 node_id = '{:02x}{:02x}{:02x}{:02x}'.format(node_id[0], node_id[1], node_id[2], node_id[3])
 print('Node ' + node_id)
 
-_MAC_ACK = json.dumps({
-    'cmd': 'ack',
+_MAC_ACK_PING = json.dumps({
+    'cmd': 'ack_ping',
     'id': node_id
 }).encode('ascii')
 
+_MAC_ACK_SYNC = json.dumps({
+    'cmd': 'ack_sync',
+    'id': node_id
+}).encode('ascii')
 
-def ack():
-    return _MAC_ACK
+_MAC_ACK_CONF = json.dumps({
+    'cmd': 'ack_conf',
+    'id': node_id
+}).encode('ascii')
 
 
 def nak(reason=None):
@@ -29,14 +35,14 @@ def process_command(data, client):
         packet = json.loads(packet)
         command = packet['cmd']
         if command == 'ping':
-            return ack()
+            return _MAC_ACK_PING
         elif command == 'sync':
             client.mac_sync()
-            return ack()
+            return _MAC_ACK_SYNC
         elif command == 'conf':
             new_conf = packet['new']
             client.update_conf(new_conf)
-            return ack()
+            return _MAC_ACK_CONF
         else:
             return nak('Command handler not found for command: ' + command)
     except UnicodeError:

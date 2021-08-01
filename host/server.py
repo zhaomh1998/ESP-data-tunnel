@@ -3,7 +3,9 @@ import json
 import socket
 import argparse
 import traceback
+import warnings
 from warnings import warn
+warnings.simplefilter('always', UserWarning)
 
 from decode import decode_tag_packet, decode_tag_packet_bench
 from mac_util import NodeLossCounter
@@ -125,7 +127,7 @@ class Server:
 
     def handle_mac_packet(self, addr, packet):
         command = packet['cmd']
-        if command == 'ack':
+        if command == 'ack_ping':
             assert 'id' in packet.keys(), f'Invalid ACK packet: {repr(packet)}'
             node_id = packet['id']
             if node_id not in self.nodes.keys() or addr != self.nodes[node_id]:
@@ -138,6 +140,8 @@ class Server:
             else:
                 self.nodes_ack[node_id].ack_ok()
             self.node_last_active[node_id] = time.time()
+        else:
+            warn(f'Unhandled MAC command {command}')
 
     def handle_binary_packet(self, addr, data):
         tag_data = decode_tag_packet(data)
